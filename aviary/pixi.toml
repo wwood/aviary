@@ -53,6 +53,7 @@ minimap2 = ["minimap2"]
 spades = ["spades"]
 pysam = ["pysam"]
 mfqe = ["mfqe"]
+gatb = ["gatb", "main"]
 final-assembly = ["final-assembly"]
 # Binning
 seqkit = ["seqkit"]
@@ -139,6 +140,12 @@ spades = ">=4.0.0"
 megahit = ">=1.2.9"
 pyyaml = ">=6.0.2"
 joblib = ">=1.4.2"
+
+[feature.gatb.dependencies]
+git = "*"
+
+[feature.gatb.activation]
+scripts = ["scripts/install_gatb.sh"]
 
 [feature.pysam.dependencies]
 python = ">=3.6"

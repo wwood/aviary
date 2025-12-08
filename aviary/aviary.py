@@ -839,6 +839,16 @@ def main():
     )
 
     assemble_group.add_argument(
+        '--use-gatb', '--use_gatb',
+        help='Use GATB-minia-pipeline for short-read only assembly',
+        type=str2bool,
+        nargs='?',
+        const=True,
+        dest='use_gatb',
+        default=False,
+    )
+
+    assemble_group.add_argument(
         '--coassemble', '--co-assemble', '--co_assemble',
         help='Specifies whether or not, when given multiple input reads, to coassemble them. \n'
              'If False (no), Aviary will use the first set of short reads and first set of long reads to perform assembly \n'

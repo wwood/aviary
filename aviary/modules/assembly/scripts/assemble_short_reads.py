@@ -11,17 +11,19 @@ def assemble_short_reads(
         read_set1, read_set2,
         max_memory: int,
         use_megahit: bool,
+        use_gatb: bool,
         coassemble: bool,
         threads: int,
         tmp_dir: str,
         kmer_sizes: List[int],
         log: str):
     '''
-    Assemble short reads using either megahit or spades
+    Assemble short reads using either megahit, GATB-minia-pipeline, or spades
     :param read_set1: list of short reads 1, or 'none'
     :param read_set2: list of short reads 2, or 'none'
     :param max_memory: maximum memory to use
     :param use_megahit: use megahit or not
+    :param use_gatb: use gatb-minia-pipeline or not
     :param coassemble: coassemble or not
     :param threads: number of threads
     :param tmp_dir: temporary directory
@@ -90,6 +92,11 @@ def assemble_short_reads(
 
 
     # Run chosen assembler
+    if use_megahit and use_gatb:
+        with open(log, 'a') as logf:
+            logf.write("Both megahit and GATB assemblers were requested; please choose only one.\n")
+        sys.exit(1)
+
     if use_megahit:
         max_memory_in_bytes = max_memory * 1024*1024*1024
         command = f"megahit {read_string} -t {threads} -m {max_memory_in_bytes} -o data/megahit_assembly {tmp_dir_arg}"
@@ -99,6 +106,42 @@ def assemble_short_reads(
             subprocess.run(command.split(), stdout=logf, stderr=subprocess.STDOUT)
         os.makedirs("data/short_read_assembly", exist_ok=True)
         shutil.copyfile("data/megahit_assembly/final.contigs.fa", "data/short_read_assembly/scaffolds.fasta")
+
+    elif use_gatb:
+        working_dir = tmp_dir if tmp_dir else None
+        output_prefix = os.path.join(working_dir if working_dir else ".", "data/short_read_assembly/scaffolds")
+        os.makedirs(os.path.dirname(output_prefix), exist_ok=True)
+        gatb_path = shutil.which("gatb")
+        if gatb_path is None:
+            with open(log, 'a') as logf:
+                logf.write("GATB executable not found in PATH.\n")
+            sys.exit(1)
+        max_memory_mb = max_memory * 1024
+        kmer_arg = ""
+        if kmer_sizes and kmer_sizes != ["auto"]:
+            kmer_arg = f" --kmer-sizes {','.join(map(str, kmer_sizes))}"
+        command = (
+            f"{sys.executable} {gatb_path} {read_string} --nb-cores {threads} "
+            f"--no-scaffolding --no-error-correction --max-memory {max_memory_mb} "
+            f"-o {output_prefix}{kmer_arg}"
+        )
+
+        with open(log, 'a') as logf:
+            logf.write(f"Queueing command {command}\n")
+            subprocess.run(command.split(), stdout=logf, stderr=subprocess.STDOUT, cwd=working_dir)
+
+        final_contigs = f"{output_prefix}_final.contigs.fa"
+        legacy_contigs = f"{output_prefix}.fasta"
+        target_scaffolds = os.path.join(os.path.dirname(output_prefix), "scaffolds.fasta")
+
+        if os.path.exists(final_contigs):
+            shutil.copyfile(final_contigs, target_scaffolds)
+        elif os.path.exists(legacy_contigs):
+            shutil.copyfile(legacy_contigs, target_scaffolds)
+        else:
+            with open(log, 'a') as logf:
+                logf.write("GATB did not produce an assembly file.\n")
+            sys.exit(1)
 
     else:
         kmers = " ".join(map(str, kmer_sizes))
@@ -116,6 +159,8 @@ if __name__ == '__main__':
     parser.add_argument('--max-memory', type=int, required=True, help='Maximum memory to use in GB')
     parser.add_argument('--use-megahit', type=lambda x: x.lower() == 'true', nargs='?', const=True, default=False,
                         help='Use megahit (True) or spades (False)')
+    parser.add_argument('--use-gatb', type=lambda x: x.lower() == 'true', nargs='?', const=True, default=False,
+                        help='Use GATB-minia-pipeline (True) or spades (False)')
     parser.add_argument('--coassemble', type=lambda x: x.lower() == 'true', nargs='?', const=True, default=False,
                         help='Coassemble reads (True) or not (False)')
     parser.add_argument('--threads', type=int, required=True, help='Number of threads to use')
@@ -148,6 +193,7 @@ if __name__ == '__main__':
         read_set2,
         args.max_memory,
         args.use_megahit,
+        args.use_gatb,
         args.coassemble,
         args.threads,
         args.tmp_dir,

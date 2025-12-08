@@ -3,6 +3,8 @@
 import unittest
 import os
 import tempfile
+import subprocess
+import sys
 import extern
 
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -380,6 +382,62 @@ class Tests(unittest.TestCase):
             self.assertTrue("fastqc_long" in output)
             self.assertTrue("nanoplot" in output)
             self.assertTrue("metaquast" not in output)
+
+    def test_gatb_short_read_assembly(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = os.path.join(tmpdir, "gatb.log")
+            manifest_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "aviary", "pixi.toml")
+            )
+            gatb_bin = os.path.join(
+                os.path.dirname(manifest_path), ".pixi", "envs", "gatb", "bin"
+            )
+
+            script_path = os.path.abspath(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "..",
+                    "aviary/modules/assembly/scripts/assemble_short_reads.py",
+                )
+            )
+
+            subprocess.run(
+                ["pixi", "install", "--manifest-path", manifest_path, "-e", "gatb"],
+                check=True,
+            )
+
+            env = os.environ.copy()
+            env["PATH"] = gatb_bin + os.pathsep + env.get("PATH", "")
+
+            cmd = [
+                sys.executable,
+                script_path,
+                "--short-reads-1",
+                FORWARD_READS,
+                "--short-reads-2",
+                REVERSE_READS,
+                "--max-memory",
+                "2",
+                "--use-megahit",
+                "False",
+                "--use-gatb",
+                "True",
+                "--coassemble",
+                "False",
+                "--threads",
+                "2",
+                "--tmp-dir",
+                tmpdir,
+                "--kmer-sizes",
+                "21",
+                "--log",
+                log_path,
+            ]
+
+            subprocess.run(cmd, cwd=tmpdir, env=env, check=True)
+
+            scaffolds = os.path.join(tmpdir, "data/short_read_assembly/scaffolds.fasta")
+            self.assertTrue(os.path.exists(scaffolds))
 
 if __name__ == '__main__':
     unittest.main()

@@ -451,6 +451,7 @@ rule assemble_short_reads:
         max_memory = config["max_memory"],
         kmer_sizes = config["kmer_sizes"],
         use_megahit = config["use_megahit"],
+        use_gatb = config.get("use_gatb", False),
         coassemble = config["coassemble"],
         tmpdir = f"--tmp-dir {config['tmpdir']}" if 'tmpdir' in config and config['tmpdir'] else "",
         final_assembly = True
@@ -470,6 +471,7 @@ rule assemble_short_reads:
         --short-reads-2 {params.short_reads_2} \
         --max-memory {config[max_memory]} \
         --use-megahit {params.use_megahit} \
+        --use-gatb {params.use_gatb} \
         --coassemble {params.coassemble} \
         --threads {threads} \
         {params.tmpdir} \

@@ -277,6 +277,7 @@ class Processor:
         try:
             self.kmer_sizes = args.kmer_sizes
             self.use_megahit = args.use_megahit
+            self.use_gatb = args.use_gatb
             self.coassemble = args.coassemble
             self.min_cov_long = args.min_cov_long
             self.min_cov_short = args.min_cov_short
@@ -286,6 +287,7 @@ class Processor:
         except AttributeError:
             self.kmer_sizes = ['auto']
             self.use_megahit = False
+            self.use_gatb = False
             self.coassemble = False
             self.min_cov_long = 20
             self.min_cov_short = 3
@@ -452,6 +454,7 @@ class Processor:
         conf["medaka_model"] = self.medaka_model
         conf["kmer_sizes"] = self.kmer_sizes
         conf["use_megahit"] = self.use_megahit
+        conf["use_gatb"] = self.use_gatb
         conf["coassemble"] = self.coassemble
         conf["min_cov_long"] = self.min_cov_long
         conf["min_cov_short"] = self.min_cov_short
