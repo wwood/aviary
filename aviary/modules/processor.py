@@ -278,6 +278,7 @@ class Processor:
 
         try:
             self.kmer_sizes = args.kmer_sizes
+            self.use_unicycler = args.use_unicycler
             self.use_megahit = args.use_megahit
             self.coassemble = args.coassemble
             self.min_cov_long = args.min_cov_long
@@ -287,6 +288,7 @@ class Processor:
             self.long_contig_size = args.include_contig_size
         except AttributeError:
             self.kmer_sizes = ['auto']
+            self.use_unicycler = False
             self.use_megahit = False
             self.coassemble = False
             self.min_cov_long = 20
@@ -454,6 +456,7 @@ class Processor:
         conf["long_read_assembler"] = self.long_read_assembler
         conf["medaka_model"] = self.medaka_model
         conf["kmer_sizes"] = self.kmer_sizes
+        conf["use_unicycler"] = self.use_unicycler
         conf["use_megahit"] = self.use_megahit
         conf["coassemble"] = self.coassemble
         conf["min_cov_long"] = self.min_cov_long
