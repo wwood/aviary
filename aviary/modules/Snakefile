@@ -2,11 +2,21 @@
 # ruleorder: filtlong_no_reference > link_reads
 
 onsuccess:
-    shell("chmod g+w {log}")
+    import os
+    log_list = log if isinstance(log, list) else [log]
+    flat_logs = [item for sublist in log_list for item in (sublist if isinstance(sublist, list) else [sublist])]
+    for l in flat_logs:
+        if isinstance(l, str) and os.path.exists(l):
+            shell("chmod g+w " + l)
     print("Aviary finished, no error")
 
 onerror:
-    shell("chmod g+w {log}")
+    import os
+    log_list = log if isinstance(log, list) else [log]
+    flat_logs = [item for sublist in log_list for item in (sublist if isinstance(sublist, list) else [sublist])]
+    for l in flat_logs:
+        if isinstance(l, str) and os.path.exists(l):
+            shell("chmod g+w " + l)
     print("An error occurred")
 
 onstart:
@@ -29,7 +39,7 @@ onstart:
     ## pplacer deadlocks on too many threads
     pplacer_threads = min(48, int(config["pplacer_threads"]))
 
-    if long_reads == "none" and short_reads_1 == "none":
+    if long_reads == "none" and short_reads_1 == "none" and not config.get("skip_reads_check", False):
         sys.exit("Need at least one of long_reads or short_reads_1")
     if long_reads != "none" and not os.path.exists(long_reads[0]):
         sys.exit("long_reads does not point to a file")

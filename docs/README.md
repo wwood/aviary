@@ -1,5 +1,10 @@
 ![](/images/aviary_logo.png)
 
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/aviary/badges/license.svg)](https://anaconda.org/bioconda/aviary)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/aviary/badges/version.svg)](https://anaconda.org/bioconda/aviary)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/aviary/badges/latest_release_relative_date.svg)](https://anaconda.org/bioconda/aviary)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/aviary/badges/platforms.svg)](https://anaconda.org/bioconda/aviary)
+
 # Aviary
 An easy to use for wrapper for a robust snakemake pipeline for metagenomic hybrid assembly, binning, and annotation. 
 The pipeline currently includes a step-down iterative 
@@ -23,7 +28,11 @@ comprehensive binning pipeline. Each module can be run independently or as a sin
 
 ## Citation
 
-On its way :P
+If you use Aviary in your research, please cite:
+
+> Newell RJP, Aroney STN, Zaugg J, Sternes P, Tyson GW, Woodcroft BJ.
+> **Aviary: Hybrid assembly and genome recovery from metagenomes with Aviary.**
+> Zenodo (2024). https://doi.org/10.5281/zenodo.10806928
 
 ## License
 

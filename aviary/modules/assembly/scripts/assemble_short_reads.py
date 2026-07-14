@@ -100,6 +100,32 @@ def assemble_short_reads(
         os.makedirs("data/short_read_assembly", exist_ok=True)
         shutil.copyfile("data/megahit_assembly/final.contigs.fa", "data/short_read_assembly/scaffolds.fasta")
 
+        # Find largest k-mer from intermediate contigs and generate GFA graph
+        intermediate_dir = "data/megahit_assembly/intermediate_contigs"
+        kmer_sizes = [
+            int(f.split('.')[0][1:])
+            for f in os.listdir(intermediate_dir)
+            if f.startswith('k') and f.endswith('.contigs.fa')
+        ]
+        max_kmer = max(kmer_sizes)
+        contigs_fa = os.path.join(intermediate_dir, f"k{max_kmer}.contigs.fa")
+        fastg_path = os.path.join(intermediate_dir, f"k{max_kmer}.fastg")
+        gfa_path = "data/short_read_assembly/assembly_graph_with_scaffolds.gfa"
+        gfa_tmp_dir = "data/short_read_assembly/gfa_tmp"
+        os.makedirs(gfa_tmp_dir, exist_ok=True)
+        with open(log, 'a') as logf:
+            with open(fastg_path, 'w') as fastg_out:
+                subprocess.run(
+                    f"megahit_toolkit contig2fastg {max_kmer} {contigs_fa}".split(),
+                    stdout=fastg_out, stderr=logf, check=True
+                )
+            subprocess.run(
+                    f"agtools fastg2gfa --graph {fastg_path} -o {gfa_tmp_dir}".split(),
+                    stderr=logf, check=True
+                )
+        shutil.move(os.path.join(gfa_tmp_dir, "converted_graph.gfa"), gfa_path)
+        shutil.rmtree(gfa_tmp_dir)
+
     else:
         kmers = " ".join(map(str, kmer_sizes))
         command = f"spades.py --memory {max_memory} --meta -t {threads} " \

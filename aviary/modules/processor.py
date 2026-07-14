@@ -84,6 +84,9 @@ def get_snakefile(file="Snakefile"):
 
 ###############################################################################
 ################################ - Classes - ##################################
+# Subcommands that do not require short or long reads.
+# Add new subcommand names here to allow them to run without reads.
+SUBCOMMANDS_WITHOUT_READS = ['annotate', 'cluster']
 
 class Processor:
     def __init__(self, args):
@@ -95,6 +98,11 @@ class Processor:
         self.workflows = args.workflow
         self.request_gpu = args.request_gpu
         self.strict = args.strict
+
+        try:
+            self.skip_reads_check = args.skip_reads_check
+        except AttributeError:
+            self.skip_reads_check = any(w in SUBCOMMANDS_WITHOUT_READS for w in self.workflows)
 
         try:
             self.pplacer_threads = min(int(args.pplacer_threads), int(self.threads), 48)
@@ -123,6 +131,7 @@ class Processor:
 
             self.coverage_samples_per_job = args.coverage_samples_per_job
             self.semibin_model = args.semibin_model
+            self.semibin_mode = args.semibin_mode
             self.refinery_max_iterations = args.refinery_max_iterations
             self.refinery_max_retries = args.refinery_max_retries
             self.skip_abundances = args.skip_abundances
@@ -169,6 +178,7 @@ class Processor:
             self.coverage_split = False
             self.coverage_samples_per_job = 5
             self.semibin_model = 'global'
+            self.semibin_mode = 'single'
             self.refinery_max_iterations = 5
             self.refinery_max_retries = 3
             self.skip_binners = ["none"]
@@ -240,6 +250,7 @@ class Processor:
             self.longread_type = 'none'
             self.medaka_model = 'none'
             self.long_read_assembler = 'myloasm'
+        self.guppy_model = getattr(args, 'guppy_model', 'r941_min_hac_g507')
 
         try:
             self.short_percent_identity = args.short_percent_identity
@@ -412,6 +423,20 @@ class Processor:
 
         if self.assembly != "none" and self.assembly is not None:
             self.assembly = list(dict.fromkeys([os.path.abspath(p) for p in self.assembly]))
+            if len(self.assembly) > 1 and self.semibin_mode != "multi":
+                logging.error(
+                    "Multiple assemblies provided but --semibin-mode is not 'multi'. "
+                    "Pass --semibin-mode multi to enable SemiBin2 multi-sample binning, "
+                    "or provide a single pre-concatenated assembly."
+                )
+                sys.exit(-1)
+            if len(self.assembly) == 1 and self.semibin_mode == "multi":
+                logging.warning(
+                    "--semibin-mode multi was requested but only one assembly was provided. "
+                    "SemiBin2 will run but multi-sample binning requires at least two assemblies "
+                    "to be meaningful. Pass multiple assemblies with --assembly A.fasta B.fasta "
+                    "to use multi-sample mode properly."
+                )
         elif self.assembly is None:
             self.assembly = 'none'
             logging.warning("No assembly provided, assembly will be created using available reads...")
@@ -436,6 +461,7 @@ class Processor:
         conf["quality_cutoff"] = self.quality_cutoff
         conf["extra_fastp_params"] = self.extra_fastp_params
         conf["skip_qc"] = self.skip_qc
+        conf["skip_reads_check"] = self.skip_reads_check
         conf["gsa"] = self.gold_standard
         conf["gsa_mappings"] = self.gsa_mappings
         conf["skip_binners"] = self.skip_binners
@@ -444,6 +470,7 @@ class Processor:
         conf["skip_singlem"] = self.skip_singlem
         conf["binning_only"] = self.binning_only
         conf["semibin_model"] = self.semibin_model
+        conf["semibin_mode"] = self.semibin_mode
         conf["coverage_split"] = self.coverage_split
         conf["coverage_samples_per_split"] = self.coverage_samples_per_job
         conf["refinery_max_iterations"] = self.refinery_max_iterations
@@ -459,6 +486,7 @@ class Processor:
         conf["long_read_type"] = self.longread_type
         conf["long_read_assembler"] = self.long_read_assembler
         conf["medaka_model"] = self.medaka_model
+        conf["guppy_model"] = self.guppy_model
         conf["kmer_sizes"] = self.kmer_sizes
         conf["use_unicycler"] = self.use_unicycler
         conf["use_megahit"] = self.use_megahit
@@ -490,6 +518,7 @@ class Processor:
         conf["precluster_method"] = self.precluster_method
         conf["pggb_params"] = self.pggb_params
         conf["tmpdir"] = self.tmpdir
+            
 
         with open(self.config, "w") as f:
             yaml.dump(conf, f)

@@ -24,8 +24,11 @@
 import pytest
 import os
 import os.path
+import signal
 import subprocess
 import shutil
+import signal
+import time
 import unittest
 import glob
 import re
@@ -36,6 +39,9 @@ if os.environ.get("TEST_REQUEST_GPU", "0") == "1":
     request_gpu = "--request-gpu"
 else:
     request_gpu = ""
+
+singlem_metapackage = os.environ.get("SINGLEM_METAPACKAGE_PATH", "")
+singlem_args = f"--skip-singlem false --singlem-metapackage-path {singlem_metapackage}" if singlem_metapackage else ""
 
 def setup_output_dir(output_dir):
     try:
@@ -265,6 +271,7 @@ class Tests(unittest.TestCase):
             f"-o {output_dir}/aviary_out "
             f"-1 {data}/wgsim.1.fq.gz "
             f"-2 {data}/wgsim.2.fq.gz "
+            f"{singlem_args} "
             f"-n 32 -t 32 "
             f"--strict "
         )
@@ -279,12 +286,14 @@ class Tests(unittest.TestCase):
         self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
         self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/assembly/final_contigs.fasta"))
 
-        self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
+        if singlem_metapackage:
+            self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/benchmarks/singlem_appraise.benchmark.txt"))
 
     def test_long_read_recovery_split(self):
         output_dir = os.path.join("example", "test_long_read_recovery_split")
@@ -292,7 +301,7 @@ class Tests(unittest.TestCase):
 
         for i, size in enumerate([80000, 50000, 20000]):
             for end in [1, 2]:
-                cmd = f"zcat {data}/wgsim.{end}.fq.gz | head -n {size} > {output_dir}/wgsim_{i}.{end}.fq.gz"
+                cmd = f"zcat {data}/wgsim.{end}.fq.gz | head -n {size} | gzip > {output_dir}/wgsim_{i}.{end}.fq.gz"
                 subprocess.run(cmd, shell=True, check=True)
 
         cmd = (
@@ -307,6 +316,7 @@ class Tests(unittest.TestCase):
             f"--coverage-samples-per-job 2 "
             f"--min-read-size 10 --min-mean-q 1 "
             f"-n 32 -t 32 "
+            f"{singlem_args} "
         )
         subprocess.run(cmd, shell=True, check=True)
 
@@ -314,12 +324,13 @@ class Tests(unittest.TestCase):
         self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
         self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/assembly/final_contigs.fasta"))
 
-        self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
+        if singlem_metapackage:
+            self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
 
     def test_long_read_recovery_default(self):
         output_dir = os.path.join("example", "test_long_read_recovery")
@@ -334,6 +345,7 @@ class Tests(unittest.TestCase):
             f"--min-read-size 10 --min-mean-q 1 "
             f"-n 32 -t 32 "
             f"--strict "
+            f"{singlem_args} "
         )
         subprocess.run(cmd, shell=True, check=True)
 
@@ -341,12 +353,13 @@ class Tests(unittest.TestCase):
         self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
         self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/assembly/final_contigs.fasta"))
 
-        self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
+        if singlem_metapackage:
+            self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
 
     def test_long_read_only_recovery(self):
         output_dir = os.path.join("example", "test_long_read_only_recovery")
@@ -357,6 +370,7 @@ class Tests(unittest.TestCase):
             f"-l {data}/pbsim.fq.gz "
             f"--longread-type ont "
             f"--min-read-size 10 --min-mean-q 1 "
+            f"{singlem_args} "
             f"-n 32 -t 32 "
             f"--strict "
         )
@@ -367,12 +381,13 @@ class Tests(unittest.TestCase):
         self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
         self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/assembly/final_contigs.fasta"))
 
-        self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
+        if singlem_metapackage:
+            self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
 
     def test_short_read_recovery_fast(self):
         output_dir = os.path.join("example", "test_short_read_recovery_fast")
@@ -401,7 +416,8 @@ class Tests(unittest.TestCase):
         self.assertFalse(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
 
     def test_short_read_recovery_semibin(self):
-        output_dir = os.path.join("example", "test_short_read_recovery_semibin")
+        suffix = "_gpu" if os.environ.get("TEST_REQUEST_GPU") == "1" else ""
+        output_dir = os.path.join("example", f"test_short_read_recovery_semibin{suffix}")
         setup_output_dir(output_dir)
 
         cmd = f"ln -sr {data}/wgsim.1.fq.gz {output_dir}/wgsim2.1.fq.gz && ln -sr {data}/wgsim.2.fq.gz {output_dir}/wgsim2.2.fq.gz"
@@ -428,6 +444,94 @@ class Tests(unittest.TestCase):
         with open(bin_info_path) as f:
             num_lines = sum(1 for _ in f)
         self.assertEqual(num_lines, 3)
+
+        self.assertFalse(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
+    
+    def test_short_read_recovery_semibin_multi(self):
+        suffix = "_gpu" if os.environ.get("TEST_REQUEST_GPU") == "1" else ""
+        output_dir = os.path.join("example", f"test_short_read_recovery_semibin_multi{suffix}")
+        setup_output_dir(output_dir)
+
+        # Create a second assembly with renamed contig headers to simulate a separate sample.
+        # Appending "_s2" to NODE names ensures contig names are unique across the two assemblies.
+        assembly2 = os.path.join(output_dir, "assembly2.fasta")
+        cmd = (
+            f"awk '/^>/ {{print $0 \"_s2\"}} !/^>/ {{print $0}}' "
+            f"{data}/assembly.fasta > {assembly2}"
+        )
+        subprocess.run(cmd, shell=True, check=True)
+
+        # Symlink a second read set to simulate reads from the second sample.
+        cmd = (
+            f"ln -sr {data}/wgsim.1.fq.gz {output_dir}/wgsim2.1.fq.gz && "
+            f"ln -sr {data}/wgsim.2.fq.gz {output_dir}/wgsim2.2.fq.gz"
+        )
+        subprocess.run(cmd, shell=True, check=True)
+
+        cmd = (
+            f"aviary recover "
+            f"--assembly {data}/assembly.fasta {assembly2} "
+            f"-o {output_dir}/aviary_out "
+            f"-1 {data}/wgsim.1.fq.gz {output_dir}/wgsim2.1.fq.gz "
+            f"-2 {data}/wgsim.2.fq.gz {output_dir}/wgsim2.2.fq.gz "
+            f"--binning-only "
+            f"--skip-binners rosella vamb metabat "
+            f"--semibin-mode multi "
+            f"{request_gpu} "
+            f"--skip-qc "
+            f"--refinery-max-iterations 0 "
+            f"-n 32 -t 32 "
+            f"--strict "
+        )
+        subprocess.run(cmd, shell=True, check=True)
+
+        bin_info_path = f"{output_dir}/aviary_out/bins/bin_info.tsv"
+        self.assertTrue(os.path.isfile(bin_info_path))
+        with open(bin_info_path) as f:
+            num_lines = sum(1 for _ in f)
+        self.assertGreater(num_lines, 1)
+
+        # Two assemblies → two sample directories under samples/
+        # (SemiBin2 also writes .fa and .csv files into the same directory, so filter dirs only)
+        semibin_sample_dirs = [
+            d for d in glob.glob(f"{output_dir}/aviary_out/data/semibin_bins/samples/*")
+            if os.path.isdir(d)
+        ]
+        self.assertEqual(len(semibin_sample_dirs), 2)
+
+        semibin_bins = glob.glob(f"{output_dir}/aviary_out/data/semibin_bins/output_bins/*.fa")
+        self.assertGreater(len(semibin_bins), 0)
+
+        # Bin filenames must be prefixed with their sample name
+        sample_names = [os.path.basename(d) for d in semibin_sample_dirs]
+        bin_names = [os.path.basename(b) for b in semibin_bins]
+        self.assertTrue(
+            any(
+                bin_name.startswith(f"{sample_name}_")
+                for sample_name in sample_names
+                for bin_name in bin_names
+            )
+        )
+
+        # Confirm the concatenated FASTA and per-sample BAMs were created
+        self.assertTrue(os.path.isfile(
+            f"{output_dir}/aviary_out/data/semibin_multi_prep/concatenated.fa"
+        ))
+        self.assertGreater(
+            len(glob.glob(f"{output_dir}/aviary_out/data/semibin_multi_bams/*.bam")), 0
+        )
+
+        semibin_logs = glob.glob(
+            f"{output_dir}/aviary_out/logs/semibin/*/attempt*.log"
+        )
+        self.assertGreater(len(semibin_logs), 0)
+        self.assertTrue(
+            any(
+                "Performing multi-sample binning" in open(log_path).read()
+                for log_path in semibin_logs
+            ),
+            "SemiBin log did not show multi-sample binning was run",
+        )
 
         self.assertFalse(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
 
@@ -503,8 +607,17 @@ class Tests(unittest.TestCase):
         self.assertFalse(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
 
     def test_short_read_recovery_taxvamb(self):
-        output_dir = os.path.join("example", "test_short_read_recovery_taxvamb")
+        suffix = "_gpu" if os.environ.get("TEST_REQUEST_GPU") == "1" else ""
+        output_dir = os.path.join("example", f"test_short_read_recovery_taxvamb{suffix}")
+        logs_dir = os.path.join(output_dir, "aviary_out", "logs")
+        logs_backup = logs_dir + ".bak"
+        if os.path.exists(logs_dir):
+            shutil.copytree(logs_dir, logs_backup)
         setup_output_dir(output_dir)
+        if os.path.exists(logs_backup):
+            os.makedirs(os.path.join(output_dir, "aviary_out"), exist_ok=True)
+            shutil.copytree(logs_backup, logs_dir)
+            shutil.rmtree(logs_backup)
 
         # Create inflated assembly file
         cmd = f"cat {data}/assembly.fasta > {output_dir}/assembly.fasta"
@@ -540,8 +653,17 @@ class Tests(unittest.TestCase):
         self.assertFalse(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
 
     def test_short_read_recovery_comebin(self):
-        output_dir = os.path.join("example", "test_short_read_recovery_comebin")
+        suffix = "_gpu" if os.environ.get("TEST_REQUEST_GPU") == "1" else ""
+        output_dir = os.path.join("example", f"test_short_read_recovery_comebin{suffix}")
+        logs_dir = os.path.join(output_dir, "aviary_out", "logs")
+        logs_backup = logs_dir + ".bak"
+        if os.path.exists(logs_dir):
+            shutil.copytree(logs_dir, logs_backup)
         setup_output_dir(output_dir)
+        if os.path.exists(logs_backup):
+            os.makedirs(os.path.join(output_dir, "aviary_out"), exist_ok=True)
+            shutil.copytree(logs_backup, logs_dir)
+            shutil.rmtree(logs_backup)
 
         # Create inflated assembly file
         cmd = f"cat {data}/assembly.fasta > {output_dir}/assembly.fasta"
@@ -658,6 +780,7 @@ class Tests(unittest.TestCase):
             f"-1 {data}/wgsim.1.fq.gz "
             f"-2 {data}/wgsim.2.fq.gz "
             f"{request_gpu} "
+            f"{singlem_args} "
             f"-n 32 -t 32 "
             f"--strict "
         )
@@ -672,12 +795,13 @@ class Tests(unittest.TestCase):
         self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/data/final_contigs.fasta"))
         self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/assembly/final_contigs.fasta"))
 
-        self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
-        self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
-        self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
+        if singlem_metapackage:
+            self.assertTrue(os.path.islink(f"{output_dir}/aviary_out/diversity"))
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/metagenome.combined_otu_table.csv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv"))
+            self.assertTrue(os.path.getsize(f"{output_dir}/aviary_out/diversity/singlem_appraisal.tsv") > 0)
+            self.assertTrue(os.path.isfile(f"{output_dir}/aviary_out/diversity/singlem_appraise.svg"))
 
         gtdbtk_path = f"{output_dir}/aviary_out/taxonomy/gtdbtk.bac120.summary.tsv"
         self.assertTrue(os.path.isfile(gtdbtk_path))
@@ -733,6 +857,160 @@ class Tests(unittest.TestCase):
         if printed_paths:
             # Normalize whitespace and test for existence of at least one printed log
             self.assertTrue(any(os.path.exists(p.strip()) for p in printed_paths))
+
+    def test_assembly_stageguard_checkpoint_resume(self):
+        """Verify that aviary assembly resumes correctly after SIGTERM mid-run.
+
+        Starts aviary assemble with megahit (skip-qc for speed), kills it after
+        the first stageguard checkpoint done file appears, then restarts. The
+        second run must resume from the checkpoint and produce a valid assembly.
+        """
+        output_dir = os.path.join("example", "test_assembly_stageguard_resume")
+        setup_output_dir(output_dir)
+        aviary_out = os.path.join(output_dir, "aviary_out")
+
+        stageguard_done_dir = os.path.join(
+            aviary_out, "data", "stageguard_short_read_assembly", "megahit", "done"
+        )
+        # Watch for k21.done: triggered when megahit finishes the k21 iteration
+        # and starts k29. At this point megahit has written k21 intermediate
+        # files, so --continue can genuinely resume from k29.
+        kill_checkpoint = os.path.join(stageguard_done_dir, "k21.done")
+        final_assembly = os.path.join(aviary_out, "data", "final_contigs.fasta")
+
+        base_cmd = (
+            f"aviary assemble "
+            f"-o {aviary_out} "
+            f"-1 {data}/wgsim.1.fq.gz "
+            f"-2 {data}/wgsim.2.fq.gz "
+            f"--use-megahit --skip-qc "
+            f"-n 32 -t 32 "
+        )
+
+        # ── Phase 1: start aviary, kill the whole process group once k21 is done ──
+        # start_new_session=True puts aviary and all its children (inner snakemake,
+        # megahit) in a new process group so os.killpg reaches them all.
+        proc = subprocess.Popen(base_cmd, shell=True, start_new_session=True)
+        deadline = time.time() + 1800  # 30-minute safety timeout
+
+        while not os.path.exists(kill_checkpoint):
+            if time.time() > deadline:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait()
+                self.fail("Timed out waiting for stageguard k21 checkpoint")
+            rc = proc.poll()
+            if rc is not None:
+                # Aviary finished before we could catch it — only acceptable if
+                # it completed successfully (fast machine / tiny dataset).
+                if rc == 0 and os.path.isfile(final_assembly):
+                    self.skipTest(
+                        "Aviary completed before k21 checkpoint could be caught; "
+                        "resume test skipped (try on a slower machine or larger dataset)"
+                    )
+                self.fail(
+                    f"Aviary exited with rc={rc} before k21 checkpoint appeared"
+                )
+            time.sleep(5)
+
+        # Kill the entire process group (aviary + inner snakemake + megahit).
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass  # already exited
+        try:
+            proc.wait(timeout=60)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+
+        # Aviary uses --nolock so no Snakemake lock remains; clear it anyway
+        # in case the lock behaviour changes.
+        lock_dir = os.path.join(aviary_out, ".snakemake", "locks")
+        if os.path.exists(lock_dir):
+            shutil.rmtree(lock_dir)
+
+        # ── Phase 2: restart — must resume from the existing checkpoint ──────
+        subprocess.run(base_cmd, shell=True, check=True)
+
+        self.assertTrue(
+            os.path.isfile(final_assembly),
+            "Final assembly missing after stageguard checkpoint resume",
+        )
+
+        # Every megahit checkpoint done file must be present after a full run.
+        # Note: preprocess2 was removed — megahit internally checkpoints k21 before
+        # printing 'Start assembly', so --continue skips k21 and there is no reachable
+        # string to intercept between preprocess and k29 starting.
+        megahit_checkpoints = [
+            "preprocess", "k21", "k29", "k39", "k59", "k79", "k99", "done"
+        ]
+        for cp in megahit_checkpoints:
+            self.assertTrue(
+                os.path.exists(os.path.join(stageguard_done_dir, f"{cp}.done")),
+                f"Checkpoint {cp}.done missing after resume",
+            )
+    
+    def test_assembly_stageguard_spades_multi_read_coassemble(self):
+        """Verify SPAdes coassembly with skip-qc and multiple readsets works.
+
+        This tests the concatenate_reads_for_stageguard rule which was added to
+        replace the old assemble_short_reads.py concatenation behaviour. Two
+        distinct file paths are required — aviary deduplicates identical paths,
+        which would collapse the readsets to one and skip concatenation.
+        """
+        output_dir = os.path.join("example", "test_assembly_stageguard_spades_coassemble")
+        setup_output_dir(output_dir)
+        aviary_out = os.path.join(output_dir, "aviary_out")
+
+        # Create copies of the test reads under distinct paths so aviary sees
+        # two separate readsets and does not deduplicate them.
+        reads2_1 = os.path.join(output_dir, "reads2.1.fq.gz")
+        reads2_2 = os.path.join(output_dir, "reads2.2.fq.gz")
+        shutil.copy(f"{data}/wgsim.1.fq.gz", reads2_1)
+        shutil.copy(f"{data}/wgsim.2.fq.gz", reads2_2)
+
+        final_assembly = os.path.join(aviary_out, "data", "final_contigs.fasta")
+        concatenated_reads = os.path.join(aviary_out, "data", "short_reads.1.fastq.gz")
+        concatenated_reads_2 = os.path.join(aviary_out, "data", "short_reads.2.fastq.gz")
+        stageguard_spades_done = os.path.join(
+            aviary_out, "data", "stageguard_short_read_assembly", "spades", "done", "done.done"
+        )
+        stageguard_spades_assembly = os.path.join(
+            aviary_out, "data", "stageguard_short_read_assembly",
+            "spades", "assembly_output", "scaffolds.fasta"
+        )
+
+        subprocess.run(
+            f"aviary assemble "
+            f"-o {aviary_out} "
+            f"-1 {data}/wgsim.1.fq.gz {reads2_1} "
+            f"-2 {data}/wgsim.2.fq.gz {reads2_2} "
+            f"--skip-qc --coassemble "
+            f"-n 32 -t 32 ",
+            shell=True, check=True
+        )
+
+        self.assertTrue(
+            os.path.isfile(final_assembly),
+            "Final assembly missing after SPAdes multi-read coassemble with skip-qc"
+        )
+        self.assertTrue(
+            os.path.isfile(concatenated_reads),
+            "Concatenated forward reads file missing — concatenate_reads_for_stageguard did not run"
+        )
+        self.assertTrue(
+            os.path.isfile(concatenated_reads_2),
+            "Concatenated reverse reads file missing — concatenate_reads_for_stageguard did not run"
+        )
+        self.assertTrue(
+            os.path.isfile(stageguard_spades_done),
+            "Stageguard SPAdes completion marker missing"
+        )
+        self.assertTrue(
+            os.path.isfile(stageguard_spades_assembly),
+            "Stageguard SPAdes scaffolds output missing"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
